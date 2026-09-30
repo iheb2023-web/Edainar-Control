@@ -53,12 +53,12 @@ Application settings are located in `src/main/resources/application.yml`.
 
 | Variable | Description | Default                                           |
 | :--- | :--- |:--------------------------------------------------|
-| `SPRING_DATASOURCE_URL` | PostgreSQL JDBC connection URL | `jdbc:postgresql://localhost:5433/edinar_control` |
-| `SPRING_DATASOURCE_USERNAME` | Database username | `edinar`                                          |
-| `SPRING_DATASOURCE_PASSWORD` | Database password | `edinar`                                          |
-| `PORT` / `SERVER_PORT` | Server HTTP port | `8080`                                            |
-| `JWT_SECRET` | Secret HMAC du JWT (obligatoire en production) | valeur de développement |
-| `JWT_EXPIRATION_MS` | Durée de validité du JWT en millisecondes | `86400000` |
+| `SPRING_DATASOURCE_URL` | PostgreSQL JDBC connection URL | `jdbc:postgresql://localhost:port/edinar_control` |
+| `SPRING_DATASOURCE_USERNAME` | Database username | `<your-postgres-username>`                        |
+| `SPRING_DATASOURCE_PASSWORD` | Database password | `<your-postgres-password>`                        |
+| `PORT` / `SERVER_PORT` | Server HTTP port | `port`                                            |
+| `JWT_SECRET` | Secret HMAC du JWT (obligatoire en production) | valeur de développement                           |
+| `JWT_EXPIRATION_MS` | Durée de validité du JWT en millisecondes | `86400000`                                        |
 
 Profils disponibles : `dev` pour la base PostgreSQL locale et `prod` pour des identifiants fournis par variables d'environnement.
 
