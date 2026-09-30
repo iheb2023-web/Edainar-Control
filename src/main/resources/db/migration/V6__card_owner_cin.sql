@@ -1,0 +1,2 @@
+ALTER TABLE cards
+    ADD COLUMN owner_cin VARCHAR(30);

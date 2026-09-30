@@ -1,0 +1,180 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper
+        PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+
+<mapper namespace="com.edinar.control.mapper.LedgerTransactionMapper">
+
+    <resultMap id="LedgerTransactionResultMap" type="com.edinar.control.domain.LedgerTransaction">
+        <id property="id" column="id"/>
+        <result property="cardId" column="card_id"/>
+        <result property="type" column="type"/>
+        <result property="direction" column="direction"/>
+        <result property="amount" column="amount"/>
+        <result property="feeAmount" column="fee_amount"/>
+        <result property="balanceBefore" column="balance_before"/>
+        <result property="balanceAfter" column="balance_after"/>
+        <result property="categoryId" column="category_id"/>
+        <result property="description" column="description"/>
+        <result property="reference" column="reference"/>
+        <result property="transactionDate" column="transaction_date"/>
+        <result property="transferGroupId" column="transfer_group_id"/>
+        <result property="isVoid" column="is_void"/>
+        <result property="voidReason" column="void_reason"/>
+        <result property="voidedAt" column="voided_at"/>
+        <result property="voidedBy" column="voided_by"
+                typeHandler="com.edinar.control.config.UuidTypeHandler"/>
+        <result property="createdAt" column="created_at"/>
+        <result property="updatedAt" column="updated_at"/>
+    </resultMap>
+
+    <insert id="insert" useGeneratedKeys="true" keyProperty="id" keyColumn="id">
+        INSERT INTO ledger_transactions (
+            card_id, type, direction, amount, fee_amount,
+            balance_before, balance_after,
+            category_id, description, reference,
+            transaction_date, transfer_group_id,
+            created_at, updated_at
+        ) VALUES (
+            #{cardId}, #{type}, #{direction}, #{amount}, #{feeAmount},
+            #{balanceBefore}, #{balanceAfter},
+            #{categoryId}, #{description}, #{reference},
+            #{transactionDate}, #{transferGroupId},
+            #{createdAt}, #{updatedAt}
+        )
+    </insert>
+
+    <select id="findById" resultMap="LedgerTransactionResultMap">
+        SELECT * FROM ledger_transactions WHERE id = #{id}
+    </select>
+
+    <select id="findByIdForUpdate" resultMap="LedgerTransactionResultMap">
+        SELECT * FROM ledger_transactions WHERE id = #{id} FOR UPDATE
+    </select>
+
+    <select id="findByCardId" resultMap="LedgerTransactionResultMap">
+        SELECT * FROM ledger_transactions
+        WHERE card_id = #{cardId}
+        ORDER BY transaction_date DESC, id DESC
+    </select>
+
+    <!-- Requête paginée avec filtres dynamiques -->
+    <select id="findByCardIdPaginated" resultMap="LedgerTransactionResultMap">
+        SELECT * FROM ledger_transactions
+        WHERE card_id = #{cardId}
+        <if test="type != null">
+            AND type = #{type}
+        </if>
+        <if test="fromDate != null">
+            AND transaction_date &gt;= #{fromDate}
+        </if>
+        <if test="toDate != null">
+            AND transaction_date &lt;= #{toDate}
+        </if>
+        <if test="isVoid != null">
+            AND is_void = #{isVoid}
+        </if>
+        ORDER BY transaction_date DESC, id DESC
+        LIMIT #{limit} OFFSET #{offset}
+    </select>
+
+    <select id="findByCardIdBetween" resultMap="LedgerTransactionResultMap">
+        SELECT * FROM ledger_transactions
+        WHERE card_id = #{cardId}
+          AND is_void = FALSE
+          AND transaction_date &gt;= #{fromDate}
+          AND transaction_date &lt;= #{toDate}
+        ORDER BY transaction_date DESC, id DESC
+    </select>
+
+    <!-- Compteur pour pagination -->
+    <select id="countByCardIdFiltered" resultType="long">
+        SELECT COUNT(*) FROM ledger_transactions
+        WHERE card_id = #{cardId}
+        <if test="type != null">
+            AND type = #{type}
+        </if>
+        <if test="fromDate != null">
+            AND transaction_date &gt;= #{fromDate}
+        </if>
+        <if test="toDate != null">
+            AND transaction_date &lt;= #{toDate}
+        </if>
+        <if test="isVoid != null">
+            AND is_void = #{isVoid}
+        </if>
+    </select>
+
+    <!-- Dernières N transactions non annulées -->
+    <select id="findRecentByCardId" resultMap="LedgerTransactionResultMap">
+        SELECT * FROM ledger_transactions
+        WHERE card_id = #{cardId}
+          AND is_void = FALSE
+        ORDER BY transaction_date DESC, id DESC
+        LIMIT #{limit}
+    </select>
+
+    <!-- Somme par type (exclut les annulées) — utilisée par LimitService -->
+    <select id="sumAmountByCardAndTypeBetween" resultType="java.math.BigDecimal">
+        SELECT COALESCE(SUM(amount), 0)
+        FROM ledger_transactions
+        WHERE card_id = #{cardId}
+          AND type = #{type}
+          AND is_void = FALSE
+          AND transaction_date &gt;= #{startDate}
+          AND transaction_date &lt;= #{endDate}
+    </select>
+
+    <!-- Somme par direction (exclut les annulées) -->
+    <select id="sumAmountByCardAndDirectionBetween" resultType="java.math.BigDecimal">
+        SELECT COALESCE(SUM(amount), 0)
+        FROM ledger_transactions
+        WHERE card_id = #{cardId}
+          AND direction = #{direction}
+          AND is_void = FALSE
+          AND transaction_date &gt;= #{startDate}
+          AND transaction_date &lt;= #{endDate}
+    </select>
+
+        <select id="sumAmountAndFeesByCardAndDirectionBetween" resultType="java.math.BigDecimal">
+          SELECT COALESCE(SUM(amount + CASE WHEN direction = 'OUT' THEN COALESCE(fee_amount, 0) ELSE 0 END), 0)
+          FROM ledger_transactions
+          WHERE card_id = #{cardId}
+            AND direction = #{direction}
+            AND is_void = FALSE
+            AND transaction_date &gt;= #{startDate}
+            AND transaction_date &lt;= #{endDate}
+        </select>
+
+    <!-- Dépenses personnelles : ATM, ONLINE_PAYMENT, CARD_PAYMENT (OUT, non annulées) -->
+    <select id="sumPersonalExpensesByCardBetween" resultType="java.math.BigDecimal">
+        SELECT COALESCE(SUM(amount + COALESCE(fee_amount, 0)), 0)
+        FROM ledger_transactions
+        WHERE card_id = #{cardId}
+          AND type IN ('ATM_WITHDRAWAL', 'ONLINE_PAYMENT', 'CARD_PAYMENT')
+          AND direction = 'OUT'
+          AND is_void = FALSE
+          AND transaction_date &gt;= #{startDate}
+          AND transaction_date &lt;= #{endDate}
+    </select>
+
+    <!-- VOID — jamais de suppression physique -->
+    <update id="voidTransaction">
+        UPDATE ledger_transactions
+        SET is_void     = TRUE,
+            void_reason = #{voidReason},
+            voided_at   = #{voidedAt},
+            voided_by   = #{voidedBy, typeHandler=com.edinar.control.config.UuidTypeHandler},
+            updated_at  = #{voidedAt}
+        WHERE id = #{id}
+          AND is_void = FALSE
+    </update>
+
+    <delete id="deleteByCardIdBetween">
+        DELETE FROM ledger_transactions
+        WHERE card_id = #{cardId}
+          AND transaction_date &gt;= #{fromDate}
+          AND transaction_date &lt;= #{toDate}
+    </delete>
+
+</mapper>

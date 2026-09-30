@@ -1,0 +1,77 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper
+        PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+
+<mapper namespace="com.edinar.control.mapper.LimitRuleMapper">
+
+    <resultMap id="LimitRuleResultMap" type="com.edinar.control.domain.LimitRule">
+        <id property="id" column="id"/>
+        <result property="cardId" column="card_id"/>
+        <result property="operationType" column="operation_type"/>
+        <result property="periodType" column="period_type"/>
+        <result property="limitAmount" column="limit_amount"/>
+        <result property="warningPercentage" column="warning_percentage"/>
+        <result property="criticalPercentage" column="critical_percentage"/>
+        <result property="effectiveFrom" column="effective_from"/>
+        <result property="effectiveTo" column="effective_to"/>
+        <result property="isActive" column="is_active"/>
+        <result property="createdAt" column="created_at"/>
+    </resultMap>
+
+    <insert id="insert" useGeneratedKeys="true" keyProperty="id" keyColumn="id">
+        INSERT INTO limit_rules (
+            card_id,
+            operation_type,
+            period_type,
+            limit_amount,
+            warning_percentage,
+            critical_percentage,
+            effective_from,
+            effective_to,
+            is_active,
+            created_at
+        ) VALUES (
+            #{cardId},
+            #{operationType},
+            #{periodType},
+            #{limitAmount},
+            #{warningPercentage},
+            #{criticalPercentage},
+            #{effectiveFrom},
+            #{effectiveTo},
+            #{isActive},
+            #{createdAt}
+        )
+    </insert>
+
+    <select id="findActiveByCardId" resultMap="LimitRuleResultMap">
+        SELECT *
+        FROM limit_rules
+        WHERE card_id = #{cardId}
+          AND is_active = TRUE
+          AND effective_from &lt;= CURRENT_TIMESTAMP
+          AND (effective_to IS NULL OR effective_to &gt; CURRENT_TIMESTAMP)
+        ORDER BY operation_type ASC, period_type ASC
+    </select>
+
+    <select id="findActiveByCardIdAndOpAndPeriod" resultMap="LimitRuleResultMap">
+        SELECT *
+        FROM limit_rules
+        WHERE card_id = #{cardId}
+          AND operation_type = #{operationType}
+          AND period_type = #{periodType}
+          AND is_active = TRUE
+          AND effective_from &lt;= CURRENT_TIMESTAMP
+          AND (effective_to IS NULL OR effective_to &gt; CURRENT_TIMESTAMP)
+        ORDER BY id DESC
+        LIMIT 1
+    </select>
+
+    <update id="deactivate">
+        UPDATE limit_rules
+        SET is_active = FALSE, effective_to = #{effectiveTo}
+        WHERE id = #{id} AND is_active = TRUE
+    </update>
+
+</mapper>

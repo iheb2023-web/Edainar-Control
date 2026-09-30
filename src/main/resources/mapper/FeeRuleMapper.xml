@@ -1,0 +1,71 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper
+        PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+
+<mapper namespace="com.edinar.control.mapper.FeeRuleMapper">
+
+    <resultMap id="FeeRuleResultMap" type="com.edinar.control.domain.FeeRule">
+        <id property="id" column="id"/>
+        <result property="platform" column="platform"/>
+        <result property="market" column="market"/>
+        <result property="asset" column="asset"/>
+        <result property="side" column="side"/>
+        <result property="role" column="role"/>
+        <result property="feeType" column="fee_type"/>
+        <result property="feeValue" column="fee_value"/>
+        <result property="feeCurrency" column="fee_currency"/>
+        <result property="minFee" column="min_fee"/>
+        <result property="maxFee" column="max_fee"/>
+        <result property="effectiveFrom" column="effective_from"/>
+        <result property="effectiveTo" column="effective_to"/>
+        <result property="isActive" column="is_active"/>
+        <result property="notes" column="notes"/>
+        <result property="createdAt" column="created_at"/>
+    </resultMap>
+
+    <insert id="insert" useGeneratedKeys="true" keyProperty="id" keyColumn="id">
+        INSERT INTO fee_rules (
+            platform, market, asset, side, role,
+            fee_type, fee_value, fee_currency,
+            min_fee, max_fee,
+            effective_from, effective_to,
+            is_active, notes, created_at
+        ) VALUES (
+            #{platform}, #{market}, #{asset}, #{side}, #{role},
+            #{feeType}, #{feeValue}, #{feeCurrency},
+            #{minFee}, #{maxFee},
+            #{effectiveFrom}, #{effectiveTo},
+            #{isActive}, #{notes}, #{createdAt}
+        )
+    </insert>
+
+    <select id="findAll" resultMap="FeeRuleResultMap">
+        SELECT * FROM fee_rules ORDER BY created_at DESC
+    </select>
+
+    <!--
+        Lookup avec priorité : règle spécifique (side+role exact) en premier,
+        puis fallback sur les règles avec side=NULL ou role=NULL.
+        On prend la règle la plus récente (effective_from DESC).
+    -->
+    <select id="findActiveRule" resultMap="FeeRuleResultMap">
+        SELECT *
+        FROM fee_rules
+        WHERE platform    = #{platform}
+          AND market      = #{market}
+          AND asset       = #{asset}
+          AND is_active   = TRUE
+          AND effective_from &lt;= #{atDate}
+          AND (effective_to IS NULL OR effective_to &gt; #{atDate})
+          AND (side IS NULL OR side = #{side})
+          AND (role IS NULL OR role = #{role})
+        ORDER BY
+            -- Priorité : règle la plus spécifique (side+role non null) en premier
+            (CASE WHEN side IS NOT NULL THEN 1 ELSE 0 END) DESC,
+            (CASE WHEN role IS NOT NULL THEN 1 ELSE 0 END) DESC,
+            effective_from DESC
+        LIMIT 1
+    </select>
+
+</mapper>

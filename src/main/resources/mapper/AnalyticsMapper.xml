@@ -1,0 +1,49 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.edinar.control.mapper.AnalyticsMapper">
+    <select id="profitByDay" resultType="map">
+        SELECT DATE_TRUNC('day', opened_at) AS day,
+               COALESCE(SUM(gross_profit_tnd), 0) AS gross_profit_tnd,
+               COALESCE(SUM(total_binance_fee_tnd), 0) AS binance_fees_tnd,
+               COALESCE(SUM(total_other_fees_tnd), 0) AS other_fees_tnd,
+               COALESCE(SUM(net_profit_tnd), 0) AS net_profit_tnd
+        FROM p2p_trades
+        WHERE user_id = #{userId, typeHandler=com.edinar.control.config.UuidTypeHandler}
+          AND status = 'CLOSED' AND opened_at BETWEEN #{fromDate} AND #{toDate}
+        GROUP BY DATE_TRUNC('day', opened_at) ORDER BY day
+    </select>
+    <select id="expensesByDay" resultType="map">
+        SELECT DATE_TRUNC('day', l.transaction_date) AS day,
+               COALESCE(SUM(l.amount + COALESCE(l.fee_amount, 0)), 0) AS total_expenses,
+               COALESCE(SUM(CASE WHEN l.type = 'ATM_WITHDRAWAL' THEN l.amount + COALESCE(l.fee_amount, 0) ELSE 0 END), 0) AS atm_expenses,
+               COALESCE(SUM(CASE WHEN l.type = 'ONLINE_PAYMENT' THEN l.amount + COALESCE(l.fee_amount, 0) ELSE 0 END), 0) AS online_expenses,
+               COALESCE(SUM(CASE WHEN l.type IN ('P2P_BUY', 'P2P_SELL') THEN l.fee_amount ELSE 0 END), 0) AS binance_fees_tnd
+        FROM ledger_transactions l JOIN cards c ON c.id = l.card_id
+        WHERE c.user_id = #{userId, typeHandler=com.edinar.control.config.UuidTypeHandler}
+          AND l.direction = 'OUT' AND l.is_void = FALSE
+          AND l.transaction_date BETWEEN #{fromDate} AND #{toDate}
+        GROUP BY DATE_TRUNC('day', l.transaction_date) ORDER BY day
+    </select>
+    <select id="cards" resultType="map">
+        SELECT c.id AS card_id, c.name, c.current_balance,
+               COALESCE(SUM(CASE WHEN l.direction = 'IN' THEN l.amount ELSE 0 END), 0) AS total_in,
+               COALESCE(SUM(CASE WHEN l.direction = 'OUT' THEN l.amount + COALESCE(l.fee_amount, 0) ELSE 0 END), 0) AS total_out
+        FROM cards c LEFT JOIN ledger_transactions l ON l.card_id = c.id
+          AND l.is_void = FALSE AND l.transaction_date BETWEEN #{fromDate} AND #{toDate}
+        WHERE c.user_id = #{userId, typeHandler=com.edinar.control.config.UuidTypeHandler}
+        GROUP BY c.id, c.name, c.current_balance ORDER BY c.id
+    </select>
+    <select id="volumeByDay" resultType="map">
+        SELECT DATE_TRUNC('day', o.order_date) AS day,
+               COALESCE(SUM(o.quantity_usdt), 0) AS volume_usdt,
+               COALESCE(SUM(CASE WHEN o.side = 'BUY' THEN o.quantity_usdt ELSE 0 END), 0) AS bought_usdt,
+               COALESCE(SUM(CASE WHEN o.side = 'SELL' THEN o.quantity_usdt ELSE 0 END), 0) AS sold_usdt,
+               COALESCE(SUM(o.binance_fee_usdt), 0) AS binance_fees_usdt,
+               COALESCE(SUM(o.binance_fee_tnd), 0) AS binance_fees_tnd
+        FROM p2p_orders o JOIN p2p_trades t ON t.id = o.trade_id
+        WHERE t.user_id = #{userId, typeHandler=com.edinar.control.config.UuidTypeHandler}
+          AND t.status &lt;&gt; 'CANCELLED' AND o.status &lt;&gt; 'CANCELLED'
+          AND o.order_date BETWEEN #{fromDate} AND #{toDate}
+        GROUP BY DATE_TRUNC('day', o.order_date) ORDER BY day
+    </select>
+</mapper>

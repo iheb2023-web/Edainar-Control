@@ -1,0 +1,81 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper
+        PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+
+<mapper namespace="com.edinar.control.mapper.P2pTradeMapper">
+
+    <resultMap id="P2pTradeResultMap" type="com.edinar.control.domain.P2pTrade">
+        <id property="id" column="id"/>
+        <result property="userId" column="user_id"
+                typeHandler="com.edinar.control.config.UuidTypeHandler"/>
+        <result property="cardId" column="card_id"/>
+        <result property="asset" column="asset"/>
+        <result property="quoteCurrency" column="quote_currency"/>
+        <result property="status" column="status"/>
+        <result property="totalBuyUsdt" column="total_buy_usdt"/>
+        <result property="totalSellUsdt" column="total_sell_usdt"/>
+        <result property="totalBuyTnd" column="total_buy_tnd"/>
+        <result property="totalSellTnd" column="total_sell_tnd"/>
+        <result property="totalBinanceFeeUsdt" column="total_binance_fee_usdt"/>
+        <result property="totalBinanceFeeTnd" column="total_binance_fee_tnd"/>
+        <result property="totalOtherFeesTnd" column="total_other_fees_tnd"/>
+        <result property="grossProfitTnd" column="gross_profit_tnd"/>
+        <result property="netProfitTnd" column="net_profit_tnd"/>
+        <result property="notes" column="notes"/>
+        <result property="openedAt" column="opened_at"/>
+        <result property="closedAt" column="closed_at"/>
+        <result property="createdAt" column="created_at"/>
+        <result property="updatedAt" column="updated_at"/>
+    </resultMap>
+
+    <insert id="insert" useGeneratedKeys="true" keyProperty="id" keyColumn="id">
+        INSERT INTO p2p_trades (
+            user_id, card_id, asset, quote_currency, status,
+            total_buy_usdt, total_sell_usdt, total_buy_tnd, total_sell_tnd,
+            total_binance_fee_usdt, total_binance_fee_tnd, total_other_fees_tnd,
+            gross_profit_tnd, net_profit_tnd,
+            notes, opened_at, closed_at, created_at, updated_at
+        ) VALUES (
+            #{userId, typeHandler=com.edinar.control.config.UuidTypeHandler},
+            #{cardId}, #{asset}, #{quoteCurrency}, #{status},
+            #{totalBuyUsdt}, #{totalSellUsdt}, #{totalBuyTnd}, #{totalSellTnd},
+            #{totalBinanceFeeUsdt}, #{totalBinanceFeeTnd}, #{totalOtherFeesTnd},
+            #{grossProfitTnd}, #{netProfitTnd},
+            #{notes}, #{openedAt}, #{closedAt}, #{createdAt}, #{updatedAt}
+        )
+    </insert>
+
+    <select id="findById" resultMap="P2pTradeResultMap">
+        SELECT * FROM p2p_trades WHERE id = #{id}
+    </select>
+
+    <select id="findByUserId" resultMap="P2pTradeResultMap">
+        SELECT * FROM p2p_trades
+        WHERE user_id = #{userId, typeHandler=com.edinar.control.config.UuidTypeHandler}
+        ORDER BY opened_at DESC
+    </select>
+
+    <update id="updateTotals">
+        UPDATE p2p_trades SET
+            total_buy_usdt       = #{totalBuyUsdt},
+            total_sell_usdt      = #{totalSellUsdt},
+            total_buy_tnd        = #{totalBuyTnd},
+            total_sell_tnd       = #{totalSellTnd},
+            total_binance_fee_usdt = #{totalBinanceFeeUsdt},
+            total_binance_fee_tnd  = #{totalBinanceFeeTnd},
+            gross_profit_tnd     = #{grossProfitTnd},
+            net_profit_tnd       = #{netProfitTnd},
+            updated_at           = #{updatedAt}
+        WHERE id = #{id}
+    </update>
+
+    <update id="updateStatus">
+        UPDATE p2p_trades SET
+            status     = #{status},
+            closed_at  = #{closedAt},
+            updated_at = #{updatedAt}
+        WHERE id = #{id}
+    </update>
+
+</mapper>

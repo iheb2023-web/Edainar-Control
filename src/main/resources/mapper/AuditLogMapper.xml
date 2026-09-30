@@ -1,0 +1,65 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper
+        PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+
+<mapper namespace="com.edinar.control.mapper.AuditLogMapper">
+
+    <resultMap id="AuditLogResultMap" type="com.edinar.control.domain.AuditLog">
+        <id property="id" column="id"/>
+        <result property="userId" column="user_id" typeHandler="com.edinar.control.config.UuidTypeHandler"/>
+        <result property="entityType" column="entity_type"/>
+        <result property="entityId" column="entity_id"/>
+        <result property="action" column="action"/>
+        <result property="oldData" column="old_data"/>
+        <result property="newData" column="new_data"/>
+        <result property="reason" column="reason"/>
+        <result property="requestId" column="request_id" typeHandler="com.edinar.control.config.UuidTypeHandler"/>
+        <result property="createdAt" column="created_at"/>
+    </resultMap>
+
+    <insert id="insert" useGeneratedKeys="true" keyProperty="id" keyColumn="id">
+        INSERT INTO audit_logs (
+            user_id,
+            entity_type,
+            entity_id,
+            action,
+            old_data,
+            new_data,
+            reason,
+            request_id,
+            created_at
+        ) VALUES (
+            #{userId, typeHandler=com.edinar.control.config.UuidTypeHandler},
+            #{entityType},
+            #{entityId},
+            #{action},
+            #{oldData}::jsonb,
+            #{newData}::jsonb,
+            #{reason},
+            #{requestId, typeHandler=com.edinar.control.config.UuidTypeHandler},
+            #{createdAt}
+        )
+    </insert>
+
+    <select id="findByEntity" resultMap="AuditLogResultMap">
+        SELECT *
+        FROM audit_logs
+        WHERE entity_type = #{entityType}
+          AND entity_id = #{entityId}
+        ORDER BY created_at DESC, id DESC
+    </select>
+
+    <select id="findByUserFiltered" resultMap="AuditLogResultMap">
+        SELECT * FROM audit_logs
+        WHERE user_id = #{userId, typeHandler=com.edinar.control.config.UuidTypeHandler}
+        <if test="fromDate != null">AND created_at &gt;= #{fromDate}</if>
+        <if test="toDate != null">AND created_at &lt;= #{toDate}</if>
+        <if test="entityType != null">AND entity_type = #{entityType}</if>
+        <if test="entityId != null">AND entity_id = #{entityId}</if>
+        <if test="action != null">AND action = #{action}</if>
+        ORDER BY created_at DESC, id DESC
+        LIMIT #{limit} OFFSET #{offset}
+    </select>
+
+</mapper>

@@ -1,0 +1,121 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper
+        PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+
+<mapper namespace="com.edinar.control.mapper.CardMapper">
+
+    <resultMap id="CardResultMap" type="com.edinar.control.domain.Card">
+        <id property="id" column="id"/>
+        <result property="userId" column="user_id" typeHandler="com.edinar.control.config.UuidTypeHandler"/>
+        <result property="name" column="name"/>
+        <result property="maskedNumber" column="masked_number"/>
+        <result property="cardNumber" column="card_number"/>
+        <result property="secretCode" column="secret_code"/>
+        <result property="phoneNumber" column="phone_number"/>
+        <result property="expirationDate" column="expiration_date"/>
+        <result property="ownerName" column="owner_name"/>
+        <result property="ownerCin" column="owner_cin"/>
+        <result property="provider" column="provider"/>
+        <result property="currency" column="currency"/>
+        <result property="status" column="status"/>
+        <result property="currentBalance" column="current_balance"/>
+        <result property="lastVerifiedBalance" column="last_verified_balance"/>
+        <result property="lastVerifiedAt" column="last_verified_at"/>
+        <result property="notes" column="notes"/>
+        <result property="createdAt" column="created_at"/>
+        <result property="updatedAt" column="updated_at"/>
+    </resultMap>
+
+    <insert id="insert" useGeneratedKeys="true" keyProperty="id" keyColumn="id">
+        INSERT INTO cards (
+            user_id, name, masked_number, card_number, secret_code, phone_number, expiration_date, owner_name, owner_cin, provider, currency, status,
+            current_balance, last_verified_balance, last_verified_at,
+            notes, created_at, updated_at
+        ) VALUES (
+            #{userId, typeHandler=com.edinar.control.config.UuidTypeHandler},
+            #{name}, #{maskedNumber}, #{cardNumber}, #{secretCode}, #{phoneNumber}, #{expirationDate}, #{ownerName}, #{ownerCin}, #{provider}, #{currency}, #{status},
+            #{currentBalance}, #{lastVerifiedBalance}, #{lastVerifiedAt},
+            #{notes}, #{createdAt}, #{updatedAt}
+        )
+    </insert>
+
+    <select id="findById" resultMap="CardResultMap">
+        SELECT * FROM cards WHERE id = #{id}
+    </select>
+
+    <!-- SELECT FOR UPDATE — verrouille la ligne pour les opérations financières -->
+    <select id="findByIdForUpdate" resultMap="CardResultMap">
+        SELECT * FROM cards WHERE id = #{id} FOR UPDATE
+    </select>
+
+    <!-- Ownership check — retourne null si la carte n'appartient pas au userId -->
+    <select id="findByIdAndUserId" resultMap="CardResultMap">
+        SELECT * FROM cards
+        WHERE id = #{id}
+          AND user_id = #{userId, typeHandler=com.edinar.control.config.UuidTypeHandler}
+    </select>
+
+    <!-- Ownership + FOR UPDATE — opérations financières avec vérification de propriété -->
+    <select id="findByIdAndUserIdForUpdate" resultMap="CardResultMap">
+        SELECT * FROM cards
+        WHERE id = #{id}
+          AND user_id = #{userId, typeHandler=com.edinar.control.config.UuidTypeHandler}
+        FOR UPDATE
+    </select>
+
+    <select id="findAll" resultMap="CardResultMap">
+        SELECT * FROM cards ORDER BY id ASC
+    </select>
+
+    <select id="findByUserId" resultMap="CardResultMap">
+        SELECT * FROM cards
+        WHERE user_id = #{userId, typeHandler=com.edinar.control.config.UuidTypeHandler}
+        ORDER BY id ASC
+    </select>
+
+    <update id="update">
+        UPDATE cards
+        SET name = #{name},
+            masked_number = #{maskedNumber},
+            card_number = COALESCE(#{cardNumber}, card_number),
+            secret_code = COALESCE(#{secretCode}, secret_code),
+            phone_number = #{phoneNumber},
+            expiration_date = #{expirationDate},
+            owner_name = #{ownerName},
+            owner_cin = #{ownerCin},
+            provider = #{provider},
+            notes = #{notes},
+            updated_at = #{updatedAt}
+        WHERE id = #{id}
+    </update>
+
+    <update id="updateStatus">
+        UPDATE cards
+        SET status = #{status},
+            updated_at = #{updatedAt}
+        WHERE id = #{id}
+    </update>
+
+    <delete id="delete">
+        DELETE FROM cards WHERE id = #{id}
+    </delete>
+
+    <update id="updateBalance">
+        UPDATE cards
+        SET current_balance = #{currentBalance},
+            updated_at = #{updatedAt}
+        WHERE id = #{id}
+    </update>
+
+    <!-- Met à jour le solde courant ET le solde vérifié (après réconciliation) -->
+    <update id="updateVerifiedBalance">
+        UPDATE cards
+        SET current_balance       = #{currentBalance},
+            last_verified_balance = #{lastVerifiedBalance},
+            last_verified_at      = #{lastVerifiedAt},
+            updated_at            = #{updatedAt}
+        WHERE id = #{id}
+    </update>
+
+</mapper>
